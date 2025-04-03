@@ -1,16 +1,57 @@
-# music_recommendation_app
+# AI Music Recommendation App 🎵
 
-A new Flutter project.
+![App Screenshot](assets/images/screenshot.png) <!-- Add your screenshot path here -->
 
-## Getting Started
+A Flutter application that generates personalized music playlists based on mood and genre selections using AI-powered recommendations.
 
-This project is a starting point for a Flutter application.
+## Features ✨
 
-A few resources to get you started if this is your first Flutter project:
+- **Mood-based recommendations**: Select from various moods (Happy, Sad, Energetic, etc.)
+- **Multi-genre selection**: Choose from 20+ music genres
+- **Hybrid API integration**: Combines Last.fm and OpenAI for robust recommendations
+- **Music service integration**: Open playlists directly in Spotify or Audiomack
+- **Beautiful UI**: Custom animations and responsive design
+- **Offline caching**: Stores recent recommendations for offline access
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+## Technologies Used 🛠️
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+- **Flutter**: Cross-platform framework
+- **Dart**: Programming language
+- **Hive**: Lightweight database for caching
+- **Last.fm API**: For music metadata and recommendations
+- **OpenAI API**: For AI-powered playlist generation
+- **Google Fonts**: Custom typography
+
+## Installation Guide 📲
+
+### Prerequisites
+
+- Flutter SDK (latest version)
+- Android Studio/Xcode (for emulator)
+- Physical device (optional but recommended)
+
+### Setup
+
+1. Clone the repository:
+   ```bash
+   git clone
+   ```
+2. flutter pub get
+3. tokenOpenAi=your_openai_key_here
+   tokenLastFm=your_lastfm_key_here
+4. flutter run
+
+How It Works 🤖
+User selects a mood from animated circles
+
+Chooses one or more music genres
+
+App combines selections to generate recommendations:
+
+First tries Last.fm API
+
+Falls back to OpenAI if needed
+
+Uses mock data if APIs fail
+
+Displays playlist with options to open in music services

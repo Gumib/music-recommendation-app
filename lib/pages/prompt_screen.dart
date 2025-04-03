@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:music_recommendation_app/components/random_circles.dart';
+import '../components/random_circles.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
@@ -22,9 +22,9 @@ class _PromptScreenState extends State<PromptScreen> {
     "Rock",
     "AmaPiano",
     "Gospel",
-    "Hip-Hip",
+    "Hip-Hop",
     "R&B",
-    "Raggae",
+    "Reggae",
     "Deep House",
     "Gqom",
     "Afrobeat",
@@ -32,7 +32,13 @@ class _PromptScreenState extends State<PromptScreen> {
     "Country",
     "Classical",
     "Pop",
-    "Punk"
+    "Punk",
+    "Karaoke",
+    "Indie",
+    "80s",
+    "Dance",
+    "Hardcore",
+    "Alternative",
   ];
 
   // selected genres list
@@ -63,71 +69,58 @@ class _PromptScreenState extends State<PromptScreen> {
   Future<void> _submitSelections() async {
     if (_selectedMood == null || _selectedGenres.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Please select a mood and at least one genre"),
-        ),
+        const SnackBar(
+            content: Text("Please select a mood and at least one genre")),
       );
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
-    // prompt text using mood and genres selected
-    final promptText = 'I want just a listed music playlist for'
-        'Mood: $_selectedMood, Genres: ${_selectedGenres.join(', ')}'
+    final promptText = 'I want just a listed music playlist for '
+        'Mood: $_selectedMood, Genres: ${_selectedGenres.join(', ')} '
         'in the format artist, title';
 
-    // API call to get playlist recommendations
-    final response = await http.post(
-      Uri.parse("https://api.openai.com/v1/chat/completions"),
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer ${dotenv.env["token"]},"
-      },
-      body: jsonEncode(
-        {
-          "model": "gpt-3.5-turbo-0125",
+    try {
+      final response = await http.post(
+        Uri.parse("https://api.openai.com/v1/chat/completions"),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer ${dotenv.env["token"]}",
+        },
+        body: jsonEncode({
+          "model": "gpt-3.5-turbo",
           "messages": [
-            {"role": "system", "content": promptText},
+            {"role": "user", "content": promptText}
           ],
-          "max-tokens": 250,
+          "max_tokens": 250,
           "temperature": 0,
           "top_p": 1,
-        },
-      ),
-    );
+        }),
+      );
 
-    // print response in console for debugging
-    print(response.body);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final content = data["choices"][0]["message"]["content"];
 
-    //
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      final choices = data["choices"] as List;
-      final playlistString =
-          choices.isEmpty ? choices[0]["messages"]["contents"] as String : "";
-
-      setState(() {
-        // split playlist by newline
-        _playlist = playlistString.split("\n").map((song) {
-          final parts = song.split(" - ");
-
-          if (parts.length >= 2) {
-            return {"artist": parts[0].trim(), "title": parts[1].trim()};
-          } else {
-            // handle case where song format not expected
-            return {"artist": "Unknown Artist", "title": "Unkown Song"};
-          }
-        }).toList();
-        _isLoading = false;
-      });
-    } else {
+        setState(() {
+          _playlist = content.split('\n').map((song) {
+            final parts = song.split(" - ");
+            return parts.length >= 2
+                ? {"artist": parts[0].trim(), "title": parts[1].trim()}
+                : {"artist": "Unknown Artist", "title": "Unknown Song"};
+          }).toList();
+          _isLoading = false;
+        });
+      } else {
+        throw Exception('API request failed');
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Oops! There seems to be an error. Please try again."),
-        ),
+        const SnackBar(
+            content:
+                Text("Oops! There seems to be an error. Please try again.")),
       );
     }
   }
@@ -165,435 +158,275 @@ class _PromptScreenState extends State<PromptScreen> {
     }
   }
 
-  // UI
   @override
   Widget build(BuildContext context) {
-    // SCAFFOLD
     return Scaffold(
-      // BODY
       body: Container(
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [const Color.fromARGB(255, 48, 3, 3), Colors.black],
+          gradient: const LinearGradient(
+            colors: [Color.fromARGB(255, 48, 3, 3), Colors.black],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
           image: DecorationImage(
-            // background image
             image: AssetImage("assets/images/background.png"),
             fit: BoxFit.cover,
           ),
         ),
         child: Padding(
-          padding: EdgeInsets.only(left: 16, top: 50, right: 16),
+          padding: const EdgeInsets.only(left: 16, top: 50, right: 16),
           child: _isLoading
-              ? Center(
-                  child: CircularProgressIndicator(),
-                )
+              ? const Center(child: CircularProgressIndicator())
               : _playlist.isEmpty
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // expanded for the moods
-                        Expanded(child: RandomCircles(
-                          onMoodSelected: (mood, image) {
-                            _selectedMood = mood;
-                            _selectedMoodImage = image;
-                          },
-                        )),
-
-                        // expanded for the genre selection and submit button
-                        Expanded(
-                          child: Padding(
-                            padding: EdgeInsets.only(top: 20),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // genre texts
-                                Text(
-                                  "Genre",
-                                  style: GoogleFonts.inter(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white.withValues(alpha: 0.8),
-                                  ),
-                                ),
-
-                                // various genres
-                                Padding(
-                                  padding: EdgeInsets.only(
-                                      left: 10, right: 10, top: 5),
-                                  child: StatefulBuilder(
-                                    builder: (BuildContext context, setState) {
-                                      return Wrap(
-                                        children: genres.map((genre) {
-                                          final isSelected =
-                                              _selectedGenres.contains(genre);
-
-                                          // container for each genre
-                                          return GestureDetector(
-                                            onTap: () {
-                                              setState(() {
-                                                if (_selectedGenres
-                                                    .contains(genre)) {
-                                                  _selectedGenres.remove(genre);
-                                                } else {
-                                                  _selectedGenres.add(genre);
-                                                }
-                                              });
-                                            },
-                                            child: Container(
-                                              padding: EdgeInsets.all(3),
-                                              margin: EdgeInsets.only(
-                                                  right: 4, top: 4),
-                                              decoration: BoxDecoration(
-                                                borderRadius:
-                                                    BorderRadius.circular(20),
-                                                border: Border.all(
-                                                  width: 0.5,
-                                                  color: Colors.white
-                                                      .withValues(alpha: 0.8),
-                                                ),
-                                              ),
-                                              child: Container(
-                                                padding: EdgeInsets.symmetric(
-                                                    horizontal: 16,
-                                                    vertical: 8),
-                                                decoration: BoxDecoration(
-                                                  color: isSelected
-                                                      ? Colors.blue
-                                                      : Colors.white.withValues(
-                                                          alpha: 0.8),
-                                                  borderRadius:
-                                                      BorderRadius.circular(20),
-                                                ),
-
-                                                // text for each genre
-                                                child: Text(
-                                                  genre,
-                                                  style: GoogleFonts.inter(
-                                                      fontSize: 14,
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                      color: isSelected
-                                                          ? Colors.white
-                                                          : Colors.black),
-                                                ),
-                                              ),
-                                            ),
-                                          );
-                                        }).toList(),
-                                      );
-                                    },
-                                  ),
-                                ),
-
-                                // button
-                                Padding(
-                                  padding: EdgeInsets.only(
-                                      top: 60, left: 10, right: 10),
-                                  child: GestureDetector(
-                                    onTap: _submitSelections,
-                                    child: Container(
-                                      padding:
-                                          EdgeInsets.symmetric(vertical: 15),
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(20),
-                                        color: const Color.fromARGB(
-                                            255, 235, 73, 127),
-                                      ),
-                                      child: Center(
-                                        child: Text(
-                                          "Submit",
-                                          style: GoogleFonts.inter(
-                                              color: Colors.black,
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    )
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Expanded(
-                          child: Stack(
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.end,
-                                children: [
-                                  GestureDetector(
-                                    onTap: () {
-                                      showDialog(
-                                          context: context,
-                                          builder: (context) {
-                                            return AlertDialog(
-                                              title: Text(
-                                                "Create Playlist With:",
-                                                style: GoogleFonts.inter(
-                                                    fontSize: 16,
-                                                    fontWeight:
-                                                        FontWeight.w400),
-                                              ),
-                                              content: Row(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment.center,
-                                                children: [
-                                                  // spotify
-                                                  GestureDetector(
-                                                    onTap: _openSpotify,
-                                                    child: Container(
-                                                      height: 50,
-                                                      width: 50,
-                                                      decoration: BoxDecoration(
-                                                        shape: BoxShape.circle,
-                                                        image: DecorationImage(
-                                                            image: AssetImage(
-                                                                "assets/images/spotify.png"),
-                                                            fit: BoxFit.cover),
-                                                      ),
-                                                    ),
-                                                  ),
-
-                                                  SizedBox(
-                                                    width: 8,
-                                                  ),
-
-                                                  // audiomack
-                                                  GestureDetector(
-                                                    onTap: _openAudiomack,
-                                                    child: Container(
-                                                      height: 50,
-                                                      width: 50,
-                                                      decoration: BoxDecoration(
-                                                        shape: BoxShape.circle,
-                                                        image: DecorationImage(
-                                                            image: AssetImage(
-                                                                "assets/images/audiomack.png"),
-                                                            fit: BoxFit.cover),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            );
-                                          });
-                                    },
-                                    child: Container(
-                                      height: 40,
-                                      width: 40,
-                                      decoration: BoxDecoration(
-                                          color: Colors.white,
-                                          shape: BoxShape.circle),
-                                      child: Center(
-                                        child: Icon(Icons.playlist_add_rounded),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-
-                              // image of selected mood
-                              Padding(
-                                padding: EdgeInsets.only(top: 40),
-                                child: Container(
-                                  width: MediaQuery.of(context).size.width,
-                                  decoration: _selectedMoodImage != null
-                                      ? BoxDecoration(
-                                          image: DecorationImage(
-                                            image:
-                                                AssetImage(_selectedMoodImage!),
-                                            fit: BoxFit.contain,
-                                          ),
-                                        )
-                                      : null,
-                                ),
-                              ),
-                              Align(
-                                alignment: Alignment.bottomCenter,
-                                child: Container(
-                                  padding: EdgeInsets.all(3),
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                      color:
-                                          Colors.white.withValues(alpha: 0.4),
-                                      width: 0.4,
-                                    ),
-                                  ),
-                                  child: Container(
-                                    padding: EdgeInsets.symmetric(
-                                        horizontal: 16, vertical: 8),
-                                    decoration: BoxDecoration(
-                                      color:
-                                          Colors.white.withValues(alpha: 0.8),
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    // selected mood text
-                                    child: Text(
-                                      _selectedMood ?? "",
-                                      style: GoogleFonts.inter(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.black),
-                                    ),
-                                  ),
-                                ),
-                              )
-                            ],
-                          ),
-                        ),
-                        SizedBox(
-                          width: MediaQuery.of(context).size.width,
-                          child: Container(
-                            margin: EdgeInsets.only(top: 20),
-                            padding: EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              border: Border(
-                                top:
-                                    BorderSide(width: 0.4, color: Colors.white),
-                              ),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              "Playlist",
-                              style: GoogleFonts.inter(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white.withValues(alpha: 0.6),
-                              ),
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: ListView.builder(
-                            padding: EdgeInsets.all(0),
-                            itemCount: _playlist.length,
-                            itemBuilder: (BuildContext context, int index) {
-                              final song = _playlist[index];
-
-                              return Padding(
-                                padding: EdgeInsets.only(
-                                    left: 16, right: 16, bottom: 16),
-                                child: Container(
-                                  width: MediaQuery.of(context).size.width,
-                                  padding: EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color:
-                                        const Color.fromARGB(255, 214, 70, 118)
-                                            .withValues(alpha: 0.3),
-                                    borderRadius: BorderRadius.circular(30),
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.start,
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.center,
-                                    children: [
-                                      Container(
-                                        padding: EdgeInsets.all(8),
-                                        color: const Color.fromARGB(
-                                                255, 214, 70, 118)
-                                            .withValues(alpha: 0.3),
-                                        decoration: BoxDecoration(
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                        ),
-                                        child: Container(
-                                          width: 65,
-                                          height: 65,
-                                          decoration: BoxDecoration(
-                                            color: Colors.white,
-                                            borderRadius:
-                                                BorderRadius.circular(12),
-                                            image: DecorationImage(
-                                                image: AssetImage(
-                                                    "assets/images/sonnetlogo.png"),
-                                                fit: BoxFit.cover),
-                                          ),
-                                        ),
-                                      ),
-                                      Padding(
-                                        padding: EdgeInsets.only(left: 16),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            // artist name
-                                            SizedBox(
-                                              width: MediaQuery.of(context)
-                                                      .size
-                                                      .width *
-                                                  0.5,
-                                              child: Text(
-                                                song["artist"]!.substring(3),
-                                                style: TextStyle(
-                                                  fontSize: 14,
-                                                  fontWeight: FontWeight.w300,
-                                                  color: Colors.white,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                ),
-                                                maxLines: 1,
-                                              ),
-                                            ),
-
-                                            // title
-                                            SizedBox(
-                                              width: MediaQuery.of(context)
-                                                      .size
-                                                      .width *
-                                                  0.5,
-                                              child: Text(
-                                                song["title"]!,
-                                                style: TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Colors.white,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                ),
-                                                maxLines: 1,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      )
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
+                  ? _buildSelectionUI()
+                  : _buildPlaylistUI(),
         ),
       ),
-
-      // floating action button
       floatingActionButton: _playlist.isEmpty
-          ? Container()
-          : Container(
-              padding: EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.pink.withValues(alpha: 0.3),
-              ),
-              child: FloatingActionButton(
-                backgroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(100)),
-                onPressed: _showFirstColumn,
-                child: Icon(Icons.add),
-              ),
+          ? null
+          : FloatingActionButton(
+              backgroundColor: Colors.white,
+              onPressed: _showFirstColumn,
+              child: const Icon(Icons.refresh, color: Colors.black),
             ),
+    );
+  }
+
+  Widget _buildSelectionUI() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Mood selection with fixed height
+                SizedBox(
+                  height: constraints.maxHeight * 0.45,
+                  child: RandomCircles(
+                    onMoodSelected: (mood, image) {
+                      setState(() {
+                        _selectedMood = mood;
+                        _selectedMoodImage = image;
+                      });
+                    },
+                  ),
+                ),
+
+                // Genre selection with scrollable content
+                SizedBox(
+                  height: constraints.maxHeight * 0.55,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Genre",
+                        style: GoogleFonts.inter(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white.withOpacity(0.8),
+                        ),
+                      ),
+
+                      // Scrollable genre chips
+                      Expanded(
+                        child: SingleChildScrollView(
+                          child: Wrap(
+                            spacing: 4,
+                            runSpacing: 4,
+                            children: genres.map((genre) {
+                              final isSelected =
+                                  _selectedGenres.contains(genre);
+                              return ChoiceChip(
+                                label: Text(genre),
+                                selected: isSelected,
+                                onSelected: (_) => _onGenreSelect(genre),
+                                selectedColor:
+                                    const Color.fromARGB(255, 235, 73, 127),
+                                backgroundColor: Colors.white.withOpacity(0.8),
+                                labelStyle: GoogleFonts.inter(
+                                  color:
+                                      isSelected ? Colors.white : Colors.black,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+
+                      // Submit button
+                      Padding(
+                        padding: const EdgeInsets.only(top: 20, bottom: 40),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: _submitSelections,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor:
+                                  const Color.fromARGB(255, 235, 73, 127),
+                              padding: const EdgeInsets.symmetric(vertical: 15),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                            child: Text(
+                              "Submit",
+                              style: GoogleFonts.inter(
+                                  color: Colors.black,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                      )
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPlaylistUI() {
+    return Column(
+      children: [
+        // Mood display header
+        Expanded(
+          flex: 3,
+          child: Stack(
+            children: [
+              // Music service options
+              Positioned(
+                top: 0,
+                right: 0,
+                child: IconButton(
+                  icon: const Icon(Icons.playlist_add, color: Colors.white),
+                  onPressed: () => _showMusicServiceDialog(),
+                ),
+              ),
+
+              // Selected mood image
+              if (_selectedMoodImage != null)
+                Center(
+                  child: Image.asset(
+                    _selectedMoodImage!,
+                    width: 200,
+                    height: 200,
+                  ),
+                ),
+
+              // Selected mood label
+              Positioned(
+                bottom: 20,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.8),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      _selectedMood ?? "",
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Playlist title
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text(
+            "Playlist",
+            style: GoogleFonts.inter(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.white.withOpacity(0.6),
+            ),
+          ),
+        ),
+
+        // Playlist items
+        Expanded(
+          flex: 7,
+          child: ListView.builder(
+            padding: EdgeInsets.zero,
+            itemCount: _playlist.length,
+            itemBuilder: (context, index) {
+              final song = _playlist[index];
+              return Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: const Color.fromARGB(255, 214, 70, 118)
+                        .withOpacity(0.3),
+                    backgroundImage:
+                        const AssetImage("assets/images/sonnetlogo.png"),
+                  ),
+                  title: Text(
+                    song['title'] ?? 'Unknown',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  subtitle: Text(
+                    song['artist'] ?? 'Unknown Artist',
+                    style: TextStyle(color: Colors.white.withOpacity(0.7)),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showMusicServiceDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          "Create Playlist With:",
+          style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w400),
+        ),
+        content: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            IconButton(
+              icon: Image.asset("assets/images/spotify.png"),
+              iconSize: 50,
+              onPressed: () {
+                Navigator.pop(context);
+                _openSpotify();
+              },
+            ),
+            IconButton(
+              icon: Image.asset("assets/images/audiomack.png"),
+              iconSize: 50,
+              onPressed: () {
+                Navigator.pop(context);
+                _openAudiomack();
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
